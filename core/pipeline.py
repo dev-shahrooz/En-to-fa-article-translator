@@ -22,7 +22,7 @@ DEFAULT_FONT_PATH = os.environ.get(
 logger = logging.getLogger(__name__)
 
 
-def _mark_formula_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
+def mark_formula_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
     """Annotate text blocks with a heuristic formula flag."""
 
     for block in blocks:
@@ -64,7 +64,9 @@ def run_translation_pipeline(
 
     logger.info("Extracting text blocks from %s", input_path)
     blocks = extract_text_blocks(input_path)
-    _mark_formula_blocks(blocks)
+    blocks = mark_formula_blocks(blocks)
+    for block in blocks:
+        block.page_number = block.page_number - 1
 
     logger.info(
         "Translating %d blocks from %s to %s",
@@ -79,8 +81,10 @@ def run_translation_pipeline(
     )
     try:
         blocks = translator.translate_blocks(blocks)
-        if blocks:
-            logger.info("Block 0 after translation: %r", blocks[0].text[:200])
+        logger.info(
+            "Block 0 after translation: %r",
+            blocks[0].text[:200] if blocks else "",
+        )
     except TranslationError:
         logger.exception("Translation failed")
         raise

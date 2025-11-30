@@ -59,19 +59,21 @@ class NLLBTranslator:
             TranslationError: If the translation call fails.
         """
 
-        if not text:
-            return ""
+        if text is None or text == "":
+            return text
 
         src = src_lang or self.src_lang
         tgt = tgt_lang or self.tgt_lang
 
         try:
             result = self.client.predict(text=text, src_lang=src, tgt_lang=tgt, api_name="/translate")
-            return str(result)
+            translated = str(result)
+            return translated
         except Exception as exc:  # pragma: no cover - network interactions
+            logger.exception("Translation error via UNESCO/nllb")
             raise TranslationError("Failed to translate text via UNESCO/nllb") from exc
 
-    def translate_blocks(self, blocks: List[TextBlock]) -> List[TextBlock]:
+    def translate_blocks(self, blocks: List[TextBlock], src_lang: str | None = None, tgt_lang: str | None = None) -> List[TextBlock]:
         """Translate a collection of :class:`TextBlock` instances in-place.
 
         Blocks flagged as formula-like or containing only whitespace are left
@@ -87,22 +89,25 @@ class NLLBTranslator:
 
         translated_count = 0
 
-        src_lang = self.src_lang
-        tgt_lang = self.tgt_lang
+        src = src_lang or self.src_lang
+        tgt = tgt_lang or self.tgt_lang
 
-        for block in blocks:
-            if block.is_formula_like or not block.text.strip():
+        for index, block in enumerate(blocks):
+            if block.is_formula_like or not block.text or not block.text.strip():
                 continue
 
             original_text = block.text
-            translated_text = self.translate(original_text, src_lang, tgt_lang)
+            translated_text = self.translate(original_text, src, tgt)
+            if translated_text == "" and original_text:
+                translated_text = original_text
             block.text = translated_text
 
             if translated_count < 3:
                 logger.info(
-                    "Translated block preview: original=%r translated=%r",
-                    original_text[:100],
-                    translated_text[:100],
+                    "Block %d translated:\n  original=%r\n  translated=%r",
+                    index,
+                    original_text[:200],
+                    translated_text[:200],
                 )
             translated_count += 1
 
