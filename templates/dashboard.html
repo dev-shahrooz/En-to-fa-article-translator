@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Translation Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+  <main class="container">
+    <h1>PDF Translation</h1>
+    <section class="upload">
+      <h2>Upload a PDF</h2>
+      <form id="upload-form" enctype="multipart/form-data" method="post" action="/api/upload">
+        <input type="file" name="file" accept="application/pdf" required />
+        <button type="submit">Submit</button>
+      </form>
+    </section>
+
+    <section class="jobs">
+      <h2>Translation Jobs</h2>
+      <table id="jobs-table">
+        <thead>
+          <tr><th>Job ID</th><th>Status</th><th>Download</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>demo-job-123</td>
+            <td>pending</td>
+            <td><a href="#" aria-disabled="true">Not ready</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
