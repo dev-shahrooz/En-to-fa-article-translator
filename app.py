@@ -2,26 +2,23 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import time
 import uuid
 from dataclasses import dataclass, asdict
-from pathlib import Path
 from typing import Dict, Optional
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
+from config import TRANSLATED_DIR, UPLOAD_DIR, configure_logging
 from core.pipeline import run_translation_pipeline
 
 
-UPLOAD_DIR = Path("uploads")
-TRANSLATED_DIR = Path("translated")
-
-# Ensure directories exist at startup to avoid race conditions later on.
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-TRANSLATED_DIR.mkdir(parents=True, exist_ok=True)
+configure_logging()
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -97,6 +94,7 @@ def _save_upload(file: FileStorage) -> str:
     unique_name = f"{uuid.uuid4()}_{filename}" if filename else str(uuid.uuid4())
     destination = UPLOAD_DIR / unique_name
     file.save(destination)
+    logger.info("Saved upload %s to %s", filename, destination)
     return unique_name
 
 
@@ -108,8 +106,12 @@ def _process_pdf_job(job: Job) -> None:
     translated_path = TRANSLATED_DIR / translated_name
 
     try:
+        logger.info(
+            "Starting translation job %s: src=%s dst=%s", job.id, original_path, translated_path
+        )
         run_translation_pipeline(str(original_path), str(translated_path))
     except Exception as exc:  # pragma: no cover - background worker error path
+        logger.exception("Translation pipeline failed for job %s", job.id)
         job_store.update_job(job.id, status="failed", error_message=str(exc))
         return
 
@@ -119,6 +121,7 @@ def _process_pdf_job(job: Job) -> None:
         filename_translated=translated_name,
         error_message=None,
     )
+    logger.info("Completed translation job %s", job.id)
 
 
 def _worker_loop(poll_interval: float = 1.0) -> None:
@@ -137,6 +140,7 @@ def start_worker() -> None:
 
     worker = threading.Thread(target=_worker_loop, daemon=True, name="job-worker")
     worker.start()
+    logger.info("Background worker thread started")
 
 
 @app.route("/api/upload", methods=["POST"])
