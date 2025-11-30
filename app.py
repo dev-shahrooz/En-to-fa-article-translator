@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 import uuid
@@ -192,10 +193,10 @@ def download(job_id: str):
     )
 
 
-# Start the worker as soon as the module is imported. In production this
-# would likely be a separate process or managed by a task queue, but a
-# lightweight daemon thread suffices for local development.
-start_worker()
+# Only start the worker in the main process to avoid duplicate threads when the
+# Flask debug reloader imports this module multiple times.
+if os.environ.get("WERKZEUG_RUN_MAIN") in (None, "true"):
+    start_worker()
 
 
 if __name__ == "__main__":

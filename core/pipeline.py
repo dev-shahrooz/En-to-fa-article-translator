@@ -30,12 +30,36 @@ def _mark_formula_blocks(blocks: list[TextBlock]) -> list[TextBlock]:
     return blocks
 
 
-def run_translation_pipeline(input_path: str, output_path: str) -> None:
+def _resolve_font_path(rtl_font_path: str | None = None) -> str:
+    """Validate that the RTL font path exists before rebuilding the PDF."""
+
+    resolved_path = rtl_font_path or DEFAULT_FONT_PATH
+    if not os.path.isfile(resolved_path):
+        logger.error(
+            "RTL font file not found at %s. Set RTL_FONT_PATH to a valid font file.",
+            resolved_path,
+        )
+        raise RuntimeError(
+            "RTL font path is invalid or missing. Set the RTL_FONT_PATH environment "
+            "variable to point to an existing font file."
+        )
+    return resolved_path
+
+
+def run_translation_pipeline(
+    input_path: str,
+    output_path: str,
+    *,
+    rtl_font_path: str | None = None,
+    hf_token: str | None = None,
+) -> None:
     """Orchestrate extraction, translation, and PDF rebuild.
 
     Args:
         input_path: Location of the source PDF.
         output_path: Destination for the translated PDF.
+        rtl_font_path: Optional override for the RTL font used when rebuilding.
+        hf_token: Optional Hugging Face token override for translation.
     """
 
     logger.info("Extracting text blocks from %s", input_path)
@@ -49,16 +73,17 @@ def run_translation_pipeline(input_path: str, output_path: str) -> None:
         DEFAULT_TARGET_LANGUAGE,
     )
     translator = NLLBTranslator(
-        hf_token=HUGGINGFACE_TOKEN,
+        hf_token=hf_token or HUGGINGFACE_TOKEN,
         src_lang=DEFAULT_SOURCE_LANGUAGE,
         tgt_lang=DEFAULT_TARGET_LANGUAGE,
     )
     translator.translate_blocks(blocks)
 
     logger.info("Rebuilding translated PDF to %s", output_path)
+    font_path = _resolve_font_path(rtl_font_path)
     rebuild_pdf_with_translations(
         src_pdf_path=input_path,
         dst_pdf_path=output_path,
         blocks=blocks,
-        rtl_font_path=DEFAULT_FONT_PATH,
+        rtl_font_path=font_path,
     )

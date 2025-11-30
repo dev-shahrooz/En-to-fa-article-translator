@@ -7,7 +7,7 @@ const jobsBody = document.getElementById('jobs-body');
 const pollingIndicator = document.getElementById('polling-indicator');
 
 // Track jobs in memory so we can poll them periodically.
-const jobs = new Map(); // jobId -> { id, filename, status }
+const jobs = new Map(); // jobId -> { id, filename, status, errorMessage }
 const POLL_INTERVAL_MS = 5000;
 let pollerId = null;
 
@@ -15,6 +15,8 @@ let pollerId = null;
  * Render a job row in the table. Creates a new row if missing or updates existing.
  */
 function renderJob(job) {
+  if (!jobsBody) return;
+
   let row = document.querySelector(`[data-job-id="${job.id}"]`);
 
   // Remove placeholder row when the first job is added.
@@ -30,6 +32,7 @@ function renderJob(job) {
       <td class="job-id">${job.id}</td>
       <td class="job-name"></td>
       <td class="job-status"></td>
+      <td class="job-error"></td>
       <td class="job-download"></td>
     `;
     jobsBody.prepend(row);
@@ -37,6 +40,7 @@ function renderJob(job) {
 
   row.querySelector('.job-name').textContent = job.filename || '—';
   row.querySelector('.job-status').innerHTML = renderStatusBadge(job.status);
+  row.querySelector('.job-error').textContent = formatErrorMessage(job.errorMessage);
   row.querySelector('.job-download').innerHTML = renderDownloadLink(job);
 }
 
@@ -44,8 +48,14 @@ function renderJob(job) {
  * Convert a job status into a badge element.
  */
 function renderStatusBadge(status = 'pending') {
-  const normalized = status.toLowerCase();
-  return `<span class="badge ${normalized}">${status}</span>`;
+  const statusText = typeof status === 'string' ? status : 'pending';
+  const normalized = statusText.toLowerCase();
+  return `<span class="badge ${normalized}">${statusText}</span>`;
+}
+
+function formatErrorMessage(errorMessage) {
+  if (!errorMessage) return '—';
+  return errorMessage;
 }
 
 /**
@@ -82,8 +92,9 @@ async function pollAllJobs() {
       const payload = await res.json();
       const updated = {
         id: job.id,
-        filename: payload.filename || job.filename,
-        status: payload.status || job.status,
+        filename: payload.filename_original || payload.filename || job.filename,
+        status: payload.status || job.status || 'pending',
+        errorMessage: payload.error_message ?? job.errorMessage ?? null,
       };
       jobs.set(job.id, updated);
       renderJob(updated);
@@ -107,7 +118,7 @@ async function handleUpload(event) {
 
   const submitButton = uploadForm.querySelector('button[type="submit"]');
   if (submitButton) submitButton.disabled = true;
-  uploadStatusEl.textContent = 'Uploading…';
+  if (uploadStatusEl) uploadStatusEl.textContent = 'Uploading…';
 
   try {
     const formData = new FormData(uploadForm);
@@ -125,6 +136,7 @@ async function handleUpload(event) {
       id: payload.job_id || payload.id,
       filename: payload.filename || formData.get('file')?.name || 'PDF',
       status: payload.status || 'pending',
+      errorMessage: payload.error_message ?? null,
     };
 
     if (!job.id) throw new Error('Missing job id in response');
@@ -133,11 +145,11 @@ async function handleUpload(event) {
     renderJob(job);
     startPolling();
 
-    uploadStatusEl.textContent = 'Upload successful! Job created.';
+    if (uploadStatusEl) uploadStatusEl.textContent = 'Upload successful! Job created.';
     uploadForm.reset();
   } catch (error) {
     console.error(error);
-    uploadStatusEl.textContent = `Error: ${error.message}`;
+    if (uploadStatusEl) uploadStatusEl.textContent = `Error: ${error.message}`;
   } finally {
     if (submitButton) submitButton.disabled = false;
   }
@@ -155,8 +167,9 @@ function seedExistingJobs() {
     const id = row.getAttribute('data-job-id');
     const filename = row.querySelector('.job-name')?.textContent?.trim();
     const status = row.querySelector('.job-status')?.textContent?.trim();
+    const errorMessage = row.querySelector('.job-error')?.textContent?.trim();
     if (id) {
-      jobs.set(id, { id, filename, status });
+      jobs.set(id, { id, filename, status, errorMessage });
     }
   });
   if (jobs.size > 0) startPolling();
