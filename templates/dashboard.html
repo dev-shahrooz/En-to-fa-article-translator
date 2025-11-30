@@ -1,38 +1,54 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>PDF Translation Dashboard</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF Article Translator (NLLB)</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
+  <header class="page-header">
+    <div class="container">
+      <h1>PDF Article Translator (NLLB)</h1>
+    </div>
+  </header>
+
   <main class="container">
-    <h1>PDF Translation</h1>
-    <section class="upload">
+    <section class="card">
       <h2>Upload a PDF</h2>
-      <form id="upload-form" enctype="multipart/form-data" method="post" action="/api/upload">
-        <input type="file" name="file" accept="application/pdf" required />
-        <button type="submit">Submit</button>
+      <p class="muted">Select a PDF to translate. A job will be created and processed automatically.</p>
+      <form id="upload-form" class="upload-form" enctype="multipart/form-data" method="post" action="/api/upload">
+        <input type="file" name="file" accept="application/pdf" required>
+        <button type="submit">Upload &amp; Translate</button>
       </form>
+      <p id="upload-status" class="status-message" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="jobs">
-      <h2>Translation Jobs</h2>
-      <table id="jobs-table">
-        <thead>
-          <tr><th>Job ID</th><th>Status</th><th>Download</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>demo-job-123</td>
-            <td>pending</td>
-            <td><a href="#" aria-disabled="true">Not ready</a></td>
-          </tr>
-        </tbody>
-      </table>
+    <section class="card">
+      <div class="section-header">
+        <h2>Translation Jobs</h2>
+        <span class="muted" id="polling-indicator">Auto-refreshing…</span>
+      </div>
+      <div class="table-wrapper">
+        <table id="jobs-table">
+          <thead>
+            <tr>
+              <th>Job ID</th>
+              <th>Original Filename</th>
+              <th>Status</th>
+              <th>Download Link</th>
+            </tr>
+          </thead>
+          <tbody id="jobs-body">
+            <tr class="empty-row">
+              <td colspan="4" class="muted">No jobs yet. Upload a PDF to get started.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </section>
   </main>
-  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 </body>
 </html>
