@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from typing import List
 
 from gradio_client import Client
 
 from core.pdf_layout_extractor import TextBlock
+
+
+logger = logging.getLogger(__name__)
 
 
 class TranslationError(Exception):
@@ -21,7 +25,12 @@ class NLLBTranslator:
     at instantiation time, but they can also be overridden per translation call.
     """
 
-    def __init__(self, hf_token: str | None = None, src_lang: str = "English", tgt_lang: str = "Western Persian") -> None:
+    def __init__(
+        self,
+        hf_token: str | None = None,
+        src_lang: str = "English",
+        tgt_lang: str = "Western Persian",
+    ) -> None:
         """Initialize the translator.
 
         Args:
@@ -76,12 +85,26 @@ class NLLBTranslator:
             The list of blocks with translated text where applicable.
         """
 
+        translated_count = 0
+
+        src_lang = self.src_lang
+        tgt_lang = self.tgt_lang
+
         for block in blocks:
             if block.is_formula_like or not block.text.strip():
                 continue
 
-            translated_text = self.translate(block.text)
+            original_text = block.text
+            translated_text = self.translate(original_text, src_lang, tgt_lang)
             block.text = translated_text
+
+            if translated_count < 3:
+                logger.info(
+                    "Translated block preview: original=%r translated=%r",
+                    original_text[:100],
+                    translated_text[:100],
+                )
+            translated_count += 1
 
         return blocks
 
@@ -90,3 +113,4 @@ if __name__ == "__main__":
     translator = NLLBTranslator()
     sample = "Hugging Face Spaces make it easy to share machine learning demos."
     print(translator.translate(sample))
+

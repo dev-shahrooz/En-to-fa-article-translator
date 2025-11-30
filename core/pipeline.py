@@ -13,7 +13,7 @@ from config import (
 from core.formula_detector import is_formula_like
 from core.pdf_layout_extractor import TextBlock, extract_text_blocks
 from core.pdf_rebuilder import rebuild_pdf_with_translations
-from core.translator_nllb import NLLBTranslator
+from core.translator_nllb import NLLBTranslator, TranslationError
 
 DEFAULT_FONT_PATH = os.environ.get(
     "RTL_FONT_PATH", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -77,7 +77,13 @@ def run_translation_pipeline(
         src_lang=DEFAULT_SOURCE_LANGUAGE,
         tgt_lang=DEFAULT_TARGET_LANGUAGE,
     )
-    translator.translate_blocks(blocks)
+    try:
+        blocks = translator.translate_blocks(blocks)
+        if blocks:
+            logger.info("Block 0 after translation: %r", blocks[0].text[:200])
+    except TranslationError:
+        logger.exception("Translation failed")
+        raise
 
     logger.info("Rebuilding translated PDF to %s", output_path)
     font_path = _resolve_font_path(rtl_font_path)

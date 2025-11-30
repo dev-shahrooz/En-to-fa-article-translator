@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from typing import Iterable
 
 import fitz
 
 from core.pdf_layout_extractor import TextBlock
+
+logger = logging.getLogger(__name__)
 
 
 def _get_rtl_direction() -> int:
@@ -71,18 +74,26 @@ def rebuild_pdf_with_translations(
     rtl_direction = _get_rtl_direction()
     right_align = _get_right_alignment()
 
-    grouped_blocks = _group_blocks_by_page(blocks)
-
     with fitz.open(src_pdf_path) as src_doc, fitz.open() as dst_doc:
-        for page in src_doc:
-            # PyMuPDF page numbers are 0-based internally.
-            page_number = page.number + 1
+        for page_index, page in enumerate(src_doc):
             page_rect = page.rect
 
             dst_page = dst_doc.new_page(width=page_rect.width, height=page_rect.height)
             dst_page.show_pdf_page(dst_page.rect, src_doc, page.number)
 
-            for block in _sorted_blocks(grouped_blocks.get(page_number, [])):
+            page_blocks = [block for block in blocks if block.page_number == page_index + 1]
+
+            if page_index == 0:
+                logger.info("Rebuilder page 0 will draw %d blocks", len(page_blocks))
+                if page_blocks:
+                    first_block = _sorted_blocks(page_blocks)[0]
+                    logger.info(
+                        "Rebuilder page 0, first block bbox=%s text=%r",
+                        first_block.bbox,
+                        first_block.text[:200],
+                    )
+
+            for block in _sorted_blocks(page_blocks):
                 rect = fitz.Rect(block.bbox)
                 if rect.is_empty or not block.text:
                     continue
