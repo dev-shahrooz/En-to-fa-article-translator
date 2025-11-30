@@ -8,7 +8,6 @@ import os
 from config import (
     DEFAULT_SOURCE_LANGUAGE,
     DEFAULT_TARGET_LANGUAGE,
-    HUGGINGFACE_TOKEN,
 )
 from core.formula_detector import is_formula_like
 from core.pdf_layout_extractor import TextBlock, extract_text_blocks
@@ -51,7 +50,6 @@ def run_translation_pipeline(
     output_path: str,
     *,
     rtl_font_path: str | None = None,
-    hf_token: str | None = None,
 ) -> None:
     """Orchestrate extraction, translation, and PDF rebuild.
 
@@ -59,7 +57,6 @@ def run_translation_pipeline(
         input_path: Location of the source PDF.
         output_path: Destination for the translated PDF.
         rtl_font_path: Optional override for the RTL font used when rebuilding.
-        hf_token: Optional Hugging Face token override for translation.
     """
 
     logger.info("Extracting text blocks from %s", input_path)
@@ -75,7 +72,6 @@ def run_translation_pipeline(
         DEFAULT_TARGET_LANGUAGE,
     )
     translator = NLLBTranslator(
-        hf_token=hf_token or HUGGINGFACE_TOKEN,
         src_lang=DEFAULT_SOURCE_LANGUAGE,
         tgt_lang=DEFAULT_TARGET_LANGUAGE,
     )
